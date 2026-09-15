@@ -7,6 +7,11 @@ if TYPE_CHECKING:
     from catalog import CatalogClient
 
 
+# Sampling-rate tuning. Aim for ~50k sampled rows: tight CIs, real speedup.
+TARGET_SAMPLE_ROWS = 50_000
+MIN_SAMPLE_RATE = 0.02
+
+
 @dataclass
 class Phase1Features:
     num_filters:      int
@@ -49,10 +54,16 @@ class Phase2Features:
 
     @property
     def sample_size(self) -> float:
+        """Target sampling fraction.
+
+        We aim for roughly ``TARGET_SAMPLE_ROWS`` rows: enough for tight
+        confidence intervals while still giving a real speedup on large tables.
+        Bounded to [MIN_SAMPLE_RATE, 1.0].
+        """
         if self.table_row_count == 0:
             return 1.0
-        base = min(1.0, 10_000 / max(self.table_row_count, 1))
-        return max(base, 0.01)
+        base = min(1.0, TARGET_SAMPLE_ROWS / max(self.table_row_count, 1))
+        return max(base, MIN_SAMPLE_RATE)
 
 
 def _estimate_selectivity(predicates: list, stats) -> float:

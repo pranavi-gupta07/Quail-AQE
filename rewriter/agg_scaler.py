@@ -56,6 +56,14 @@ class AggScaler:
         Returns ScaleResult with the corrected expression.
         """
         warnings = []
+
+        # Non-aggregate SELECT items (GROUP BY keys, bare columns, literals)
+        # have no function call to scale — pass them through untouched. This is
+        # the normal case for the grouping columns in a GROUP BY query, so it
+        # must not emit a warning.
+        if "(" not in agg_expr:
+            return ScaleResult(scaled_sql=agg_expr, was_scaled=False, warnings=[])
+
         func_name = self._extract_func_name(agg_expr)
 
         # ── COUNT DISTINCT special case ───────────────────────────────────────

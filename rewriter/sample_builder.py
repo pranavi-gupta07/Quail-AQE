@@ -108,16 +108,25 @@ class SampleBuilder:
 
     def _uniform(self, table: str, rate: float) -> SampleFragment:
         """
-        Uses DuckDB's native sampling.
-        No CTE needed — just modifies the table reference in the FROM clause.
+        Uses DuckDB's native Bernoulli sampling, wrapped in a subquery.
+
+        Each row is included independently with probability ``rate`` — exactly
+        the model the confidence-interval estimator assumes. Wrapping the sample
+        in a subquery (rather than ``table USING SAMPLE ...``) means the sample
+        is applied first and any trailing WHERE / GROUP BY clause attaches to
+        the subquery — DuckDB rejects a WHERE placed directly after a
+        table-level ``USING SAMPLE``.
 
         Example output table_ref:
-            orders USING SAMPLE 10% (bernoulli)
+            (SELECT * FROM orders USING SAMPLE 10% (bernoulli)) AS _aqe_uniform
         """
         pct = round(rate * 100, 4)
+        table_ref = (
+            f"(SELECT * FROM {table} USING SAMPLE {pct}% (bernoulli)) AS _aqe_uniform"
+        )
         return SampleFragment(
             cte_sql=None,
-            table_ref=f"{table} USING SAMPLE {pct}% (bernoulli)",
+            table_ref=table_ref,
             sample_rate=rate,
             strategy="uniform",
         )

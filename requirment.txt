@@ -1,4 +1,0 @@
-sqlglot
-uvicorn
-fastapi
-duckdb
